@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Star Command</title>
+<meta name="description" content="Star Command is a free, open-source macOS menu bar app for engineers who run agents. It keeps SSH, Kubernetes and AWS tunnels up through sleep, network changes and expired SSO, and shows every Claude Code session, dev server and open port on your Mac.">
+<meta property="og:title" content="Star Command">
+<meta property="og:description" content="Command every port. Watch every agent. A free macOS menu bar app for tunnels and agent sessions.">
+<meta property="og:image" content="https://strcmd.com/icon.png">
+<meta property="og:url" content="https://strcmd.com/">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --bg-raised: #0a0a0a;
+  --bg-panel: rgba(28, 28, 30, 0.82);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --fg: #ededed;
+  --fg-muted: #a1a1a1;
+  --fg-faint: #6b6b6b;
+  --paper: #f2f0e8;
+  --green: #3ecf8e;
+  --amber: #f5a623;
+  --red: #ff5f56;
+  --blue: #52a8ff;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  --max: 1120px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+code, .mono { font-family: var(--mono); }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+/* nav */
+nav {
+  position: sticky; top: 0; z-index: 20;
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  background: rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid var(--line);
+}
+nav .wrap { display: flex; align-items: center; height: 64px; gap: 32px; }
+.brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; font-weight: 600; letter-spacing: -0.02em; font-size: 17px; }
+.brand img { width: 26px; height: 26px; }
+nav .links { display: flex; gap: 24px; font-size: 14px; color: var(--fg-muted); }
+nav .links a:hover { color: var(--fg); }
+nav .right { margin-left: auto; display: flex; gap: 10px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 16px; border-radius: 999px;
+  font-size: 14px; font-weight: 500; white-space: nowrap;
+  border: 1px solid var(--line-strong);
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.btn:hover { border-color: rgba(255,255,255,.35); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--fg); color: #000; border-color: var(--fg); }
+.btn.primary:hover { background: #fff; }
+.btn.small { height: 32px; padding: 0 12px; font-size: 13px; }
+.btn svg { width: 16px; height: 16px; }
+.btn.sponsor svg { color: #db61a2; }
+
+/* hero */
+.hero { position: relative; padding: 96px 0 0; text-align: center; isolation: isolate; }
+.hero::before {
+  content: ""; position: absolute; inset: 0; z-index: -2;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-position: center top;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+}
+.hero::after {
+  content: ""; position: absolute; z-index: -1;
+  left: 50%; top: 420px; width: 900px; height: 520px; transform: translateX(-50%);
+  background: conic-gradient(from 180deg at 50% 50%, #0c4a6e 0deg, #134e4a 90deg, #3f2d0a 200deg, #0c4a6e 360deg);
+  filter: blur(120px); opacity: .55; border-radius: 50%;
+}
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px 5px 6px; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: rgba(255,255,255,.03);
+  font-size: 13px; color: var(--fg-muted);
+}
+.pill b { font-weight: 500; color: #000; background: var(--paper); padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+h1 {
+  margin: 28px auto 0; max-width: 900px;
+  font-size: clamp(44px, 7.6vw, 84px); line-height: 1; font-weight: 700; letter-spacing: -0.055em;
+  background: linear-gradient(180deg, #fff 30%, #9a9a9a);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lede { margin: 26px auto 0; max-width: 640px; font-size: clamp(17px, 2vw, 20px); color: var(--fg-muted); letter-spacing: -0.01em; }
+.lede strong { color: var(--fg); font-weight: 500; }
+.cta { margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.cta .btn { height: 48px; padding: 0 22px; font-size: 15px; }
+.meta { margin-top: 18px; font-size: 13px; color: var(--fg-faint); font-family: var(--mono); }
+
+/* the mac */
+.stage { margin: 72px auto 0; max-width: 1000px; position: relative; }
+.screen {
+  border: 1px solid var(--line-strong); border-bottom: none;
+  border-radius: 14px 14px 0 0; overflow: hidden;
+  background:
+    radial-gradient(1200px 500px at 70% 0%, rgba(82,168,255,.10), transparent 60%),
+    linear-gradient(180deg, #0d0f12, #050506);
+  height: 560px; position: relative; text-align: left;
+}
+.menubar {
+  height: 30px; display: flex; align-items: center; gap: 18px;
+  padding: 0 14px; font-size: 13px; color: #d8d8d8;
+  background: rgba(30,30,32,.75); border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.menubar .apple { width: 14px; height: 14px; opacity: .9; }
+.menubar .app { font-weight: 600; }
+.menubar .menus { display: flex; gap: 18px; color: #bcbcbc; }
+.menubar .spacer { flex: 1; }
+.menubar .tray { display: flex; align-items: center; gap: 16px; color: #cfcfcf; }
+.tray .glyph {
+  display: grid; place-items: center; width: 26px; height: 22px; border-radius: 5px;
+  background: rgba(255,255,255,.18);
+}
+.tray .glyph svg { width: 19px; height: 15px; }
+.tray .clock { font-variant-numeric: tabular-nums; }
+
+.panel {
+  position: absolute; top: 36px; right: 92px; width: 380px;
+  background: var(--bg-panel);
+  backdrop-filter: blur(30px) saturate(160%); -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 .5px rgba(0,0,0,.8);
+  font-size: 12.5px; color: #e6e6e6; padding: 10px 0 8px;
+  animation: drop .7s cubic-bezier(.2,.8,.2,1) .25s both;
+}
+@keyframes drop { from { opacity: 0; transform: translateY(-8px) scale(.98); } }
+.panel header { display: flex; align-items: center; padding: 2px 14px 8px; gap: 8px; }
+.panel header strong { font-size: 13.5px; }
+.panel header span { color: #8e8e93; font-size: 11.5px; margin-left: auto; }
+.conn { padding: 7px 14px; border-top: 1px solid rgba(255,255,255,.06); }
+.conn-head { display: flex; align-items: center; gap: 8px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; transition: background .3s; }
+.dot.amber { background: var(--amber); box-shadow: 0 0 0 3px rgba(245,166,35,.18); }
+.dot.red { background: var(--red); }
+.conn-name { font-weight: 600; }
+.conn-sub { color: #8e8e93; font-size: 11px; }
+.conn-head .lat { margin-left: auto; color: #8e8e93; font-family: var(--mono); font-size: 10.5px; }
+.count { color: #8e8e93; font-family: var(--mono); font-size: 10.5px; }
+.switch { width: 26px; height: 15px; border-radius: 999px; background: #34c759; position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 2px; right: 2px; width: 11px; height: 11px; border-radius: 50%; background: #fff; }
+.switch.off { background: #48484a; }
+.switch.off::after { right: auto; left: 2px; }
+.fwd { display: flex; align-items: center; gap: 8px; padding: 4px 0 0 15px; }
+.fwd .lbl { min-width: 86px; }
+.fwd .route { color: #8e8e93; font-family: var(--mono); font-size: 10.5px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fwd .switch { transform: scale(.85); }
+.note { padding: 3px 0 0 15px; font-size: 10.5px; color: var(--amber); font-family: var(--mono); min-height: 18px; transition: color .3s; }
+.note.ok { color: var(--green); }
+.sys { border-top: 1px solid rgba(255,255,255,.06); padding: 8px 14px 2px; display: grid; gap: 4px; }
+.sys .row { display: flex; justify-content: space-between; color: #8e8e93; font-size: 11px; font-family: var(--mono); }
+.sys .claude { color: var(--amber); }
+
+.toast {
+  position: absolute; top: 44px; left: 24px; width: 300px;
+  background: rgba(40,40,42,.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 14px;
+  padding: 11px 13px; display: flex; gap: 10px; font-size: 12px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  opacity: 0; transform: translateX(-12px); transition: opacity .4s, transform .4s;
+}
+.toast.show { opacity: 1; transform: none; }
+.toast img { width: 32px; height: 32px; }
+.toast b { display: block; font-size: 12.5px; }
+.toast span { color: #b0b0b0; }
+
+.terminal {
+  position: absolute; left: 24px; bottom: 24px; width: 470px;
+  background: rgba(14,14,16,.92); border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+  font-family: var(--mono); font-size: 11.5px; color: #bdbdbd; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.55);
+}
+.terminal .bar { display: flex; gap: 6px; padding: 9px 11px; border-bottom: 1px solid rgba(255,255,255,.06); align-items: center; }
+.terminal .bar i { width: 10px; height: 10px; border-radius: 50%; background: #3a3a3c; }
+.terminal .bar span { margin-left: 8px; color: #7a7a7a; font-size: 11px; }
+.terminal pre { padding: 12px 14px; line-height: 1.7; white-space: pre-wrap; min-height: 190px; }
+.terminal .t { color: #6b6b6b; }
+.terminal .e { color: var(--red); }
+.terminal .ok { color: var(--green); }
+.terminal .w { color: var(--amber); }
+
+/* tool strip */
+.tools { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tools .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 26px; padding-bottom: 26px; flex-wrap: wrap; }
+.tools p { color: var(--fg-faint); font-size: 13px; }
+.tools ul { list-style: none; display: flex; gap: 8px 32px; flex-wrap: wrap; font-family: var(--mono); font-size: 14px; color: var(--fg-muted); }
+.tools li::before { content: "$ "; color: var(--fg-faint); }
+
+/* sections */
+section { padding: 120px 0; }
+.eyebrow { font-family: var(--mono); font-size: 12.5px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .08em; display: flex; align-items: center; gap: 10px; }
+.eyebrow::before { content: "[ ●"; letter-spacing: 0; color: var(--fg-faint); }
+h2 { margin-top: 18px; font-size: clamp(34px, 4.6vw, 54px); line-height: 1.04; letter-spacing: -0.045em; font-weight: 650; max-width: 760px; }
+h2 em { font-style: normal; color: var(--fg-faint); }
+.section-lede { margin-top: 18px; color: var(--fg-muted); font-size: 18px; max-width: 620px; }
+
+.grid {
+  margin-top: 56px; display: grid; grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+}
+.cell { padding: 30px 28px 34px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); position: relative; transition: background .2s; }
+.cell:hover { background: var(--bg-raised); }
+.cell:nth-child(3n) { border-right: none; }
+.cell:nth-last-child(-n+3) { border-bottom: none; }
+.cell .ico { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line-strong); display: grid; place-items: center; color: var(--fg); margin-bottom: 18px; }
+.cell .ico svg { width: 17px; height: 17px; }
+.cell h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.015em; }
+.cell p { margin-top: 8px; color: var(--fg-muted); font-size: 14.5px; line-height: 1.6; }
+.cell code { font-size: 12.5px; color: var(--fg); background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; }
+
+/* agents */
+.agents { border-bottom: 1px solid var(--line); position: relative; overflow: hidden; }
+.agents::before {
+  content: ""; position: absolute; right: -200px; top: 80px; width: 700px; height: 500px;
+  background: radial-gradient(closest-side, rgba(245,166,35,.13), transparent); pointer-events: none;
+}
+.split { display: grid; grid-template-columns: 1fr 1.25fr; gap: 64px; align-items: center; }
+.checks { margin-top: 32px; list-style: none; display: grid; gap: 16px; }
+.checks li { display: grid; grid-template-columns: 20px 1fr; gap: 12px; color: var(--fg-muted); font-size: 15px; }
+.checks li b { color: var(--fg); font-weight: 500; }
+.checks svg { width: 18px; height: 18px; margin-top: 3px; color: var(--fg); }
+
+.window {
+  border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden;
+  background: #111113; box-shadow: 0 40px 100px rgba(0,0,0,.6);
+  font-size: 12px;
+}
+.window .bar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.06); background: #18181a; }
+.window .bar i { width: 11px; height: 11px; border-radius: 50%; }
+.window .bar i:nth-child(1) { background: #ff5f57; }
+.window .bar i:nth-child(2) { background: #febc2e; }
+.window .bar i:nth-child(3) { background: #28c840; }
+.window .bar span { flex: 1; text-align: center; color: #9a9a9a; font-size: 12px; margin-right: 50px; }
+.insights { display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; color: #9a9a9a; font-family: var(--mono); font-size: 11px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.insights .warn { color: var(--amber); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 500; color: #7a7a7a; font-size: 11px; padding: 7px 14px; border-bottom: 1px solid rgba(255,255,255,.06); }
+td { padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,.04); color: #d6d6d6; white-space: nowrap; }
+td.m { font-family: var(--mono); font-size: 11px; color: #a8a8a8; }
+tr.sel td { background: rgba(82,168,255,.16); }
+.tag { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid; }
+.tag.active { color: var(--green); border-color: rgba(62,207,142,.35); }
+.tag.stale { color: var(--amber); border-color: rgba(245,166,35,.35); }
+.tag.idle { color: #8e8e93; border-color: rgba(142,142,147,.3); }
+.details { padding: 11px 14px; font-family: var(--mono); font-size: 11px; color: #9a9a9a; line-height: 1.8; }
+.details .warn { color: var(--amber); }
+
+/* resilience timeline */
+.timeline { margin-top: 56px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 1px solid var(--line); }
+.step { padding: 28px 24px 0 0; position: relative; }
+.step::before { content: ""; position: absolute; top: -5px; left: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--bg); border: 1px solid var(--fg-muted); }
+.step:last-child::before { background: var(--green); border-color: var(--green); box-shadow: 0 0 0 4px rgba(62,207,142,.15); }
+.step .when { font-family: var(--mono); font-size: 12px; color: var(--fg-faint); }
+.step h3 { margin-top: 8px; font-size: 16px; font-weight: 600; letter-spacing: -0.015em; }
+.step p { margin-top: 6px; font-size: 14.5px; color: var(--fg-muted); }
+
+/* install */
+.install { border-top: 1px solid var(--line); }
+.install .split { align-items: start; }
+.tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; width: fit-content; margin-bottom: 14px; }
+.tabs button {
+  font: inherit; font-size: 13px; color: var(--fg-muted); background: none; border: none;
+  padding: 6px 14px; border-radius: 7px; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: rgba(255,255,255,.08); color: var(--fg); }
+.code {
+  position: relative; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--bg-raised);
+  font-family: var(--mono); font-size: 13.5px; line-height: 1.9; padding: 20px 22px; overflow-x: auto;
+}
+.code[hidden] { display: none; }
+.code .c { color: var(--fg-faint); }
+.code .p { color: var(--fg-faint); user-select: none; }
+.copy {
+  position: absolute; top: 12px; right: 12px; font: inherit; font-size: 12px;
+  background: rgba(255,255,255,.06); color: var(--fg-muted); border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 9px; cursor: pointer;
+}
+.copy:hover { color: var(--fg); }
+.req { margin-top: 26px; display: grid; gap: 10px; font-size: 14.5px; color: var(--fg-muted); }
+.req div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.req dt, .req span:first-child { color: var(--fg-faint); font-family: var(--mono); font-size: 12.5px; padding-top: 2px; }
+
+/* closing */
+.closing { text-align: center; border-top: 1px solid var(--line); position: relative; overflow: hidden; }
+.closing::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background-image: radial-gradient(rgba(255,255,255,.14) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 50% 70% at 50% 50%, #000, transparent);
+  -webkit-mask-image: radial-gradient(ellipse 50% 70% at 50% 50%, #000, transparent);
+}
+.closing h2 { margin: 0 auto; }
+.closing .cta { margin-top: 32px; }
+
+footer { border-top: 1px solid var(--line); padding: 36px 0 48px; color: var(--fg-faint); font-size: 13px; }
+footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+footer a:hover { color: var(--fg); }
+footer .f-links { display: flex; gap: 22px; }
+
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .7s ease, transform .7s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+@media (max-width: 960px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .cell:nth-child(3n) { border-right: 1px solid var(--line); }
+  .cell:nth-child(2n) { border-right: none; }
+  .cell:nth-last-child(-n+3) { border-bottom: 1px solid var(--line); }
+  .cell:nth-last-child(-n+1) { border-bottom: none; }
+  .split { grid-template-columns: 1fr; gap: 48px; }
+  .timeline { grid-template-columns: 1fr 1fr; row-gap: 32px; }
+  .terminal { display: none; }
+  .panel { right: 50%; transform: translateX(50%); }
+  @keyframes drop { from { opacity: 0; } }
+}
+@media (max-width: 640px) {
+  nav .links { display: none; }
+  nav .right .btn:not(.primary):not(.sponsor) { display: none; }
+  nav .sponsor .label { display: none; }
+  nav .wrap { gap: 12px; }
+  h1 { font-size: 40px; }
+  .hero { padding-top: 64px; }
+  .grid { grid-template-columns: 1fr; }
+  .cell { border-right: none !important; border-bottom: 1px solid var(--line) !important; }
+  .cell:last-child { border-bottom: none !important; }
+  .timeline { grid-template-columns: 1fr; }
+  section { padding: 84px 0; }
+  .screen { height: 500px; }
+  .panel { width: calc(100% - 24px); }
+  .menubar .menus { display: none; }
+  .toast { left: 12px; right: 12px; width: auto; top: auto; bottom: 16px; }
+  .window { font-size: 11px; }
+  .window .scroll { overflow-x: auto; }
+  .req div { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .reveal { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="icon.png" alt="">Star Command</a>
+    <div class="links">
+      <a href="#agents">Agents</a>
+      <a href="#features">Tunnels</a>
+      <a href="#resilience">Resilience</a>
+      <a href="#install">Install</a>
+    </div>
+    <div class="right">
+      <a class="btn small sponsor" href="https://github.com/sponsors/strcmdhq" aria-label="Sponsor">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 14.25s-5.75-3.4-5.75-7.6A3.15 3.15 0 018 4.6a3.15 3.15 0 015.75 2.05c0 4.2-5.75 7.6-5.75 7.6z"/></svg>
+        <span class="label">Sponsor</span>
+      </a>
+      <a class="btn small" href="https://github.com/strcmdhq/strcmd">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a class="btn small primary" href="https://github.com/strcmdhq/strcmd/releases/latest">Download</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="pill"><b>v0.1</b> Open source · MIT · macOS 14+</span>
+    <h1>Command every port.<br>Watch every agent.</h1>
+    <p class="lede">A free menu bar app for engineers who run agents. Star Command keeps your <strong>SSH, Kubernetes and AWS tunnels</strong> up through sleep, Wi‑Fi changes and expired SSO, and shows every <strong>agent session, dev server and open port</strong> on your Mac.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/strcmdhq/strcmd/releases/latest">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.18 8.47c-.02-1.6 1.31-2.38 1.37-2.42-.75-1.09-1.91-1.24-2.32-1.26-.99-.1-1.93.58-2.43.58-.5 0-1.27-.57-2.09-.55-1.07.02-2.07.63-2.62 1.59-1.12 1.94-.29 4.8.8 6.37.53.77 1.17 1.63 2 1.6.8-.03 1.11-.52 2.08-.52.97 0 1.24.52 2.09.5.86-.01 1.41-.78 1.94-1.55.61-.89.86-1.76.88-1.8-.02-.01-1.68-.65-1.7-2.54zM9.58 3.77c.44-.54.74-1.28.66-2.02-.64.03-1.41.43-1.87.96-.41.47-.77 1.23-.67 1.96.71.05 1.44-.36 1.88-.9z"/></svg>
+        Download for macOS
+      </a>
+      <a class="btn" href="#install">Build from source →</a>
+    </div>
+    <p class="meta">ssh · kubectl · aws ssm — no daemons, no accounts</p>
+
+    <div class="stage" aria-label="Star Command's menu bar panel">
+      <div class="screen">
+        <div class="menubar">
+          <svg class="apple" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.18 8.47c-.02-1.6 1.31-2.38 1.37-2.42-.75-1.09-1.91-1.24-2.32-1.26-.99-.1-1.93.58-2.43.58-.5 0-1.27-.57-2.09-.55-1.07.02-2.07.63-2.62 1.59-1.12 1.94-.29 4.8.8 6.37.53.77 1.17 1.63 2 1.6.8-.03 1.11-.52 2.08-.52.97 0 1.24.52 2.09.5.86-.01 1.41-.78 1.94-1.55.61-.89.86-1.76.88-1.8-.02-.01-1.68-.65-1.7-2.54zM9.58 3.77c.44-.54.74-1.28.66-2.02-.64.03-1.41.43-1.87.96-.41.47-.77 1.23-.67 1.96.71.05 1.44-.36 1.88-.9z"/></svg>
+          <span class="app">Terminal</span>
+          <span class="menus"><span>Shell</span><span>Edit</span><span>View</span><span>Window</span></span>
+          <span class="spacer"></span>
+          <div class="tray">
+            <span class="glyph" title="Star Command">
+              <svg viewBox="0 0 20 16" aria-hidden="true">
+                <mask id="porthole" maskUnits="userSpaceOnUse" x="-10" y="-10" width="20" height="20"><rect x="-10" y="-10" width="20" height="20" fill="#fff"/><circle cx="0" cy="1.75" r="1.15" fill="#000"/></mask>
+                <g fill="#fff" transform="translate(0 16) scale(1 -1)">
+                  <path d="M17 15.7L17.57 13.57L19.7 13L17.57 12.43L17 10.3L16.43 12.43L14.3 13L16.43 13.57Z"/>
+                  <g id="rocket" transform="translate(8 7.4) rotate(-45) scale(.92)">
+                    <g mask="url(#porthole)">
+                      <path d="M0 7.2C1.6 5.9 2.3 4 2.3 1.8V-3.6H-2.3V1.8C-2.3 4 -1.6 5.9 0 7.2Z"/>
+                      <path d="M2.3 -0.4L4.3 -3.6V-5.2L2.3 -3.6ZM-2.3 -0.4L-4.3 -3.6V-5.2L-2.3 -3.6Z"/>
+                      <rect x="-1.3" y="-4.6" width="2.6" height="1.2"/>
+                    </g>
+                    <path id="flame" d="M-1.5 -5.2C-1.5 -7 -0.6 -8.2 0 -9.4C0.6 -8.2 1.5 -7 1.5 -5.2Z"/>
+                  </g>
+                </g>
+              </svg>
+            </span>
+            <span>⌃⌥B</span>
+            <span class="clock" id="clock">Thu 9:41 AM</span>
+          </div>
+        </div>
+
+        <div class="toast" id="toast">
+          <img src="icon.png" alt="">
+          <div><b id="toastTitle">data-dev dropped</b><span id="toastBody">SSO expired. Signing in again…</span></div>
+        </div>
+
+        <div class="terminal" aria-hidden="true">
+          <div class="bar"><i></i><i></i><i></i><span>Star Command — data-dev log</span></div>
+          <pre id="log"></pre>
+        </div>
+
+        <div class="panel">
+          <header><strong>Star Command</strong><span>Every port, under command.</span></header>
+
+          <div class="conn">
+            <div class="conn-head">
+              <span class="dot"></span>
+              <span><span class="conn-name">bastion</span> <span class="conn-sub">deploy@bastion.internal</span></span>
+              <span class="lat">23 ms</span>
+              <span class="count">2/2</span>
+              <span class="switch"></span>
+            </div>
+            <div class="fwd"><span class="lbl">postgres</span><span class="route">localhost:5432 → db:5432</span><span class="switch"></span></div>
+            <div class="fwd"><span class="lbl">SOCKS</span><span class="route">SOCKS localhost:1080</span><span class="switch"></span></div>
+          </div>
+
+          <div class="conn">
+            <div class="conn-head">
+              <span class="dot"></span>
+              <span><span class="conn-name">staging</span> <span class="conn-sub">eks-staging · api</span></span>
+              <span class="lat">probe</span>
+              <span class="count">1/2</span>
+              <span class="switch"></span>
+            </div>
+            <div class="fwd"><span class="lbl">web</span><span class="route">localhost:8080 → svc/web:80</span><span class="switch"></span></div>
+            <div class="fwd"><span class="lbl">grafana</span><span class="route">localhost:3001 → svc/grafana:3000</span><span class="switch off"></span></div>
+          </div>
+
+          <div class="conn">
+            <div class="conn-head">
+              <span class="dot" id="awsDot"></span>
+              <span><span class="conn-name">data-dev</span> <span class="conn-sub">dev · us-east-1</span></span>
+              <span class="lat" id="awsLat">probe</span>
+              <span class="count" id="awsCount">2/2</span>
+              <span class="switch"></span>
+            </div>
+            <div class="fwd"><span class="lbl">warehouse</span><span class="route">localhost:5433 → rds analytics-db:5432</span><span class="switch"></span></div>
+            <div class="fwd"><span class="lbl">airflow</span><span class="route">localhost:8081 → airflow dev-mwaa</span><span class="switch"></span></div>
+            <div class="note ok" id="awsNote">&nbsp;</div>
+          </div>
+
+          <div class="sys">
+            <div class="row"><span>CPU 18% · Memory 21.4 GB of 36 GB</span></div>
+            <div class="row claude"><span>Claude: 6 sessions · 4.8 GB</span><span>›</span></div>
+            <div class="row"><span>Stay awake · Display can sleep · 4h</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="tools">
+  <div class="wrap">
+    <p>Drives the tools you already trust</p>
+    <ul>
+      <li>ssh -M -N</li>
+      <li>kubectl port-forward</li>
+      <li>aws ssm start-session</li>
+      <li>aws sso login</li>
+    </ul>
+  </div>
+</div>
+
+<section id="agents" class="agents">
+  <div class="wrap split">
+    <div>
+      <div class="eyebrow reveal">For agentic workflows</div>
+      <h2 class="reveal">Your agents open ports. <em>You stay in command.</em></h2>
+      <p class="section-lede reveal">Six Claude Code sessions, each with its own dev server, test watcher and a database tunnel. Star Command shows what each one started, what it's holding on to, and when your Mac is starting to struggle.</p>
+      <ul class="checks reveal">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Every session, with its descendants.</b> Memory and CPU are summed over the whole process tree, not just the CLI.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>The dev servers they spawned</b>, and the ports each one is listening on.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Listeners on all interfaces</b> are flagged, because an agent's <code>0.0.0.0</code> server is reachable from your network.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Stale and crowded sessions</b>: sessions from days ago, several in one folder, and swap pressure, shown before your Mac starts to slow down.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Close what's lingering.</b> Star Command checks that a closed session actually exited.</span></li>
+      </ul>
+    </div>
+
+    <div class="window reveal" aria-label="Claude Sessions window">
+      <div class="bar"><i></i><i></i><i></i><span>Claude Sessions</span></div>
+      <div class="insights">
+        <span>6 sessions</span><span>4.8 GB with descendants</span><span>3 active</span><span class="warn">1 older than 3 days</span><span>Swap 1.2 GB of 4 GB (30%)</span>
+      </div>
+      <div class="insights"><span>2 sessions in api</span><span class="warn" style="margin-left:auto">2 listeners on all interfaces</span></div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Folder</th><th>PID</th><th>Status</th><th>Memory · CPU</th><th>Dev servers</th></tr></thead>
+          <tbody>
+            <tr class="sel"><td>api</td><td class="m">48213</td><td><span class="tag active">Active</span></td><td class="m">1.9 GB · 34%</td><td class="m">node :3000, :9229</td></tr>
+            <tr><td>api</td><td class="m">51877</td><td><span class="tag active">Active</span></td><td class="m">812 MB · 12%</td><td class="m">vitest</td></tr>
+            <tr><td>web</td><td class="m">50112</td><td><span class="tag active">Active</span></td><td class="m">1.1 GB · 21%</td><td class="m">vite :5173</td></tr>
+            <tr><td>infra</td><td class="m">39004</td><td><span class="tag idle">14m ago</span></td><td class="m">402 MB · 0%</td><td class="m">—</td></tr>
+            <tr><td>docs</td><td class="m">36651</td><td><span class="tag idle">2h ago</span></td><td class="m">310 MB · 0%</td><td class="m">—</td></tr>
+            <tr><td>spike-auth</td><td class="m">20417</td><td><span class="tag stale">Stale</span></td><td class="m">288 MB · 0%</td><td class="m">python :8000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="details">
+        PID 48213 · ~/code/api · started Nov 12, 8:02 AM<br>
+        14 descendants · 1.9 GB<br>
+        <span class="warn">node (48390) on * port 3000 · reachable from the network</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="eyebrow reveal">Tunnels</div>
+    <h2 class="reveal">Port forwards that stay forwarded. <em>Toggle one, not the whole tunnel.</em></h2>
+    <p class="section-lede reveal">One switch per connection, one per forward. Star Command reconciles what you want with what's running, live, without dropping the forwards you didn't touch.</p>
+
+    <div class="grid reveal">
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5M12 19h8"/></svg></div>
+        <h3>SSH, multiplexed</h3>
+        <p>One ControlMaster per host. Forwards are added and cancelled with <code>ssh -O</code>, so a new port never costs a reconnect. Local, remote and SOCKS.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <h3>Kubernetes</h3>
+        <p>Pick a context and namespace, then a service, deployment or pod from the list. A pod that dies restarts its own forward, nobody else's.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a5 5 0 01-.6-9.96A6 6 0 0118 9a4.5 4.5 0 01-.5 9z"/></svg></div>
+        <h3>AWS without a bastion</h3>
+        <p>SSM port forwarding to RDS, MSK and private hosts through a jump host found by <code>Name</code> tag, so autoscaled nodes are followed for you. MWAA gets a local sign-in gateway.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg></div>
+        <h3>Self-healing</h3>
+        <p>Dead links are caught within ~30 s and rebuilt with backoff. After wake or a network change every host gets a real round-trip probe.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div>
+        <h3>SSO that renews itself</h3>
+        <p>When a token expires, Star Command runs <code>aws sso login</code> for that profile and waits for you to approve it in the browser. You get one tab, however many tunnels share the profile.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M10 14L21 3M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg></div>
+        <h3>Imports your config</h3>
+        <p>Reads every <code>LocalForward</code>, <code>RemoteForward</code> and <code>DynamicForward</code> that <code>ssh -G</code> resolves, including <code>Match</code> and <code>Include</code>. Duplicate, copy and reorder forwards from there.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div>
+        <h3>"Address already in use"</h3>
+        <p>Star Command shows which of your processes is holding the port and offers <b>Quit it</b>, then retries. There's also a <b>Free a port</b> field for any port.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+        <h3>Process monitor</h3>
+        <p>A sortable table of your processes with CPU, memory, disk, threads and listening ports. You can quit, force-quit, pause or renice them from there.</p>
+      </div>
+      <div class="cell">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3L4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg></div>
+        <h3>Stay awake</h3>
+        <p>A <code>caffeinate</code>-style power assertion for 1, 4 or 8 hours, or for as long as any connection is on, so idle sleep doesn't take your tunnels down.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="resilience">
+  <div class="wrap">
+    <div class="eyebrow reveal">Resilience</div>
+    <h2 class="reveal">Close the lid. Change networks. <em>Come back to working ports.</em></h2>
+    <div class="timeline reveal">
+      <div class="step"><div class="when">t + 0s</div><h3>Link dies</h3><p><code>ServerAliveInterval</code>, a dead forward process, or a failed probe after wake. Star Command notices.</p></div>
+      <div class="step"><div class="when">t + 3s → 60s</div><h3>Backoff</h3><p>Reconnects at 3, 6, 12 seconds and so on, capped at a minute. A network change triggers an immediate retry.</p></div>
+      <div class="step"><div class="when">if SSO expired</div><h3>Re-auth</h3><p>One browser sign-in per profile. If it isn't approved, Star Command waits 15 minutes before asking again, and Reconnect skips the wait.</p></div>
+      <div class="step"><div class="when">connected</div><h3>Forwards re-applied</h3><p>Every enabled forward comes back. You get one notification for the drop and one for the recovery.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="install">
+  <div class="wrap split">
+    <div>
+      <div class="eyebrow reveal">Install</div>
+      <h2 class="reveal">Native, small, <em>and yours to read.</em></h2>
+      <p class="section-lede reveal">Written in Swift and SwiftUI with no dependencies. Config is one JSON file in Application Support, and your keys stay in your SSH agent.</p>
+      <div class="req reveal">
+        <div><span>macOS</span><span>14 Sonoma or later</span></div>
+        <div><span>SSH</span><span>Key-based auth that works non-interactively (<code>BatchMode=yes</code>)</span></div>
+        <div><span>Kubernetes</span><span><code>kubectl</code> on your PATH or in Homebrew</span></div>
+        <div><span>AWS</span><span><code>aws</code> v2, plus <code>session-manager-plugin</code> for SSM forwards</span></div>
+      </div>
+    </div>
+    <div class="reveal">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="download">Download</button>
+        <button role="tab" aria-selected="false" data-tab="source">From source</button>
+      </div>
+      <div class="code" data-panel="download">
+        <button class="copy">Copy</button>
+<span class="c"># grab the latest release</span>
+<span class="p">$ </span>curl -LO https://github.com/strcmdhq/strcmd/releases/latest/download/StarCommand.zip
+<span class="p">$ </span>ditto -x -k StarCommand.zip /Applications
+
+<span class="c"># not notarized yet: clear the quarantine flag once</span>
+<span class="p">$ </span>xattr -dr com.apple.quarantine "/Applications/Star Command.app"
+<span class="p">$ </span>open "/Applications/Star Command.app"</div>
+      <div class="code" data-panel="source" hidden>
+        <button class="copy">Copy</button>
+<span class="p">$ </span>git clone https://github.com/strcmdhq/strcmd
+<span class="p">$ </span>cd strcmd
+<span class="p">$ </span>./build.sh --install
+
+<span class="c"># or the dev loop, no bundle</span>
+<span class="p">$ </span>swift run</div>
+    </div>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <h2 class="reveal">Every port, under command.</h2>
+    <p class="section-lede reveal" style="margin-left:auto;margin-right:auto">Free and open source under the MIT license. If it saves you time, sponsoring keeps it maintained.</p>
+    <div class="cta reveal">
+      <a class="btn primary" href="https://github.com/strcmdhq/strcmd/releases/latest">Download for macOS</a>
+      <a class="btn" href="https://github.com/strcmdhq/strcmd">Star on GitHub</a>
+      <a class="btn sponsor" href="https://github.com/sponsors/strcmdhq">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 14.25s-5.75-3.4-5.75-7.6A3.15 3.15 0 018 4.6a3.15 3.15 0 015.75 2.05c0 4.2-5.75 7.6-5.75 7.6z"/></svg>
+        Sponsor
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Star Command contributors · MIT</span>
+    <div class="f-links">
+      <a href="https://github.com/strcmdhq/strcmd">Source</a>
+      <a href="https://github.com/strcmdhq/strcmd/releases">Releases</a>
+      <a href="https://github.com/strcmdhq/strcmd/issues">Issues</a>
+      <a href="https://github.com/sponsors/strcmdhq">Sponsor</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const io = new IntersectionObserver(entries => {
+  for (const entry of entries) if (entry.isIntersecting) { entry.target.classList.add("in"); io.unobserve(entry.target); }
+}, { threshold: 0.12 });
+document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+document.querySelectorAll(".tabs button").forEach(tab => tab.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(t => t.setAttribute("aria-selected", t === tab));
+  document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== tab.dataset.tab);
+}));
+document.querySelectorAll(".copy").forEach(button => button.addEventListener("click", async () => {
+  const text = [...button.parentElement.childNodes].filter(n => n !== button).map(n => n.textContent).join("")
+    .split("\n").filter(l => l.startsWith("$ ")).map(l => l.slice(2)).join("\n");
+  try { await navigator.clipboard.writeText(text); button.textContent = "Copied"; } catch { button.textContent = "Select to copy"; }
+  setTimeout(() => button.textContent = "Copy", 1600);
+}));
+
+const clock = document.getElementById("clock");
+const tick = () => clock.textContent = new Date().toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" }).replace(",", "");
+tick(); setInterval(tick, 30000);
+
+// A scripted replay of the real log lines an AWS connection writes when its SSO token expires.
+const $ = id => document.getElementById(id);
+const rocket = $("rocket"), flame = $("flame");
+const trayState = failed => { rocket.setAttribute("transform", `translate(8 7.4) rotate(${failed ? -135 : -45}) scale(.92)`); flame.style.display = failed ? "none" : ""; };
+const dot = $("awsDot"), note = $("awsNote"), count = $("awsCount"), lat = $("awsLat"), log = $("log"), toast = $("toast");
+const stamp = () => new Date().toLocaleTimeString("en-US", { hour12: false });
+const line = (cls, text) => { log.insertAdjacentHTML("beforeend", `<span class="t">${stamp()}</span> <span class="${cls}">${text}</span>\n`); const rows = log.textContent.split("\n"); if (rows.length > 10) log.innerHTML = log.innerHTML.split("\n").slice(-10).join("\n"); };
+const state = (dotClass, noteClass, noteText, active) => {
+  trayState(dotClass === "red" || dotClass === "amber");
+  dot.className = "dot " + dotClass; note.className = "note " + noteClass; note.innerHTML = noteText || "&nbsp;"; count.textContent = active + "/2";
+};
+const showToast = (title, body) => { $("toastTitle").textContent = title; $("toastBody").textContent = body; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 3200); };
+
+const script = [
+  [0,    () => { state("", "ok", "", 2); line("", "Connected"); line("", "Forward warehouse applied"); }],
+  [3200, () => { state("red", "", "SSO expired · retrying", 1); line("e", "Forward warehouse dropped: Token has expired and refresh failed"); showToast("data-dev dropped", "SSO expired. Signing in again…"); }],
+  [1400, () => { state("amber", "", "Approve the sign-in in your browser…", 1); line("w", "SSO expired; approve the sign-in in your browser. $ aws sso login --profile dev"); }],
+  [2800, () => { line("ok", "Signed in to dev"); line("", "$ aws ssm start-session --target i-0a1b2c3d …"); }],
+  [1200, () => { state("", "ok", "Reconnected", 2); line("ok", "Forward warehouse applied"); showToast("data-dev reconnected", "All forwards are back."); }],
+  [2600, () => { state("", "ok", "", 2); }],
+  [3000, () => { lat.textContent = "probe"; log.innerHTML = ""; }],
+];
+if (reduced) {
+  script[0][1]();
+} else {
+  let step = 0;
+  const run = () => { const [, action] = script[step]; action(); step = (step + 1) % script.length; setTimeout(run, script[step][0] || 400); };
+  setTimeout(run, 900);
+}
+</script>
+</body>
+</html>
